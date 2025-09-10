@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CRTC Bale Tag Scanner v2</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+    <title>CRTC Timber Piece Counter</title>
     <style>
         * {
             margin: 0;
@@ -39,7 +38,7 @@
         }
         
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 2rem auto;
             padding: 0 1rem;
         }
@@ -66,18 +65,35 @@
         .camera-container {
             position: relative;
             margin-bottom: 2rem;
+            text-align: center;
         }
         
         #video {
             width: 100%;
-            max-width: 500px;
+            max-width: 600px;
             border-radius: 8px;
             display: block;
             margin: 0 auto;
         }
         
-        #canvas {
+        #canvas, #processedCanvas {
             display: none;
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 1rem auto;
+            border: 2px solid #ddd;
+        }
+        
+        .image-preview {
+            text-align: center;
+            margin: 1rem 0;
+        }
+        
+        .image-preview img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
         }
         
         .controls {
@@ -113,94 +129,58 @@
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
         }
         
-        .btn-success:hover {
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        .btn-warning {
+            background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+            color: #333;
         }
         
-        .status {
+        .count-display {
             text-align: center;
-            padding: 1rem;
-            margin: 1rem 0;
-            border-radius: 8px;
-            font-weight: 500;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+            border: 3px solid #28a745;
         }
         
-        .status.scanning {
-            background: #e7f3ff;
-            color: #0066cc;
-            border: 2px solid #b3d9ff;
-        }
-        
-        .status.success {
-            background: #e8f5e8;
-            color: #2d5e2d;
-            border: 2px solid #90ee90;
-        }
-        
-        .status.error {
-            background: #ffe7e7;
-            color: #cc0000;
-            border: 2px solid #ffb3b3;
-        }
-        
-        .debug-section {
-            margin: 1rem 0;
-            padding: 1rem;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #007bff;
-        }
-        
-        .debug-section details {
-            cursor: pointer;
-        }
-        
-        .debug-section summary {
+        .count-number {
+            font-size: 3rem;
             font-weight: bold;
-            color: #007bff;
+            color: #155724;
             margin-bottom: 0.5rem;
         }
         
-        .debug-section pre {
-            white-space: pre-wrap;
-            font-size: 0.8rem;
-            background: white;
-            padding: 1rem;
-            border-radius: 4px;
-            margin-top: 0.5rem;
-            max-height: 200px;
-            overflow-y: auto;
+        .count-label {
+            font-size: 1.2rem;
+            color: #155724;
         }
         
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
-            background: white;
+        .count-adjustment {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .count-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .count-input {
+            width: 100px;
+            padding: 0.5rem;
+            text-align: center;
+            font-size: 1.2rem;
+            border: 2px solid #ddd;
             border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .results-table th,
-        .results-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .results-table th {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            font-weight: 600;
-            color: #495057;
-        }
-        
-        .results-table tr:hover {
-            background: #f8f9fa;
-        }
-        
-        .export-btn {
-            margin-top: 1rem;
         }
         
         .instructions {
@@ -224,6 +204,60 @@
             margin-bottom: 0.5rem;
         }
         
+        .processing-options {
+            background: #fff3cd;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .processing-options label {
+            display: block;
+            margin: 0.5rem 0;
+            cursor: pointer;
+        }
+        
+        .processing-options input[type="range"] {
+            width: 100%;
+            margin: 0.5rem 0;
+        }
+        
+        .debug-info {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        
+        .status.processing {
+            background: #e7f3ff;
+            color: #0066cc;
+            border: 2px solid #b3d9ff;
+        }
+        
+        .status.success {
+            background: #e8f5e8;
+            color: #2d5e2d;
+            border: 2px solid #90ee90;
+        }
+        
+        .status.error {
+            background: #ffe7e7;
+            color: #cc0000;
+            border: 2px solid #ffb3b3;
+        }
+        
         @media (max-width: 768px) {
             .container {
                 margin: 1rem auto;
@@ -234,13 +268,8 @@
                 padding: 1rem;
             }
             
-            .results-table {
-                font-size: 0.9rem;
-            }
-            
-            .results-table th,
-            .results-table td {
-                padding: 8px;
+            .count-number {
+                font-size: 2.5rem;
             }
         }
     </style>
@@ -248,104 +277,155 @@
 <body>
     <div class="header">
         <div class="logo">Cork Roof Truss Company</div>
-        <div class="subtitle">Bale Tag Scanner v2 - Enhanced for Södra Tags</div>
+        <div class="subtitle">Timber Piece Counter - Computer Vision Counting</div>
     </div>
 
     <div class="container">
         <div class="card">
             <div class="card-header">
-                <h2>Scan Bale Tags</h2>
-                <p>Enhanced scanner specifically designed for Södra timber bale tags</p>
+                <h2>📷 Count Timber Pieces</h2>
+                <p>Use your camera to automatically count timber pieces in stacks</p>
             </div>
             <div class="card-body">
                 <div class="instructions">
-                    <h3>Scanning Tips for Best Results:</h3>
+                    <h3>📋 Best Practices for Accurate Counting:</h3>
                     <ul>
-                        <li><strong>Frame the entire tag:</strong> Make sure all text is visible, including the bottom barcode</li>
-                        <li><strong>Good lighting:</strong> Avoid shadows and ensure even lighting across the tag</li>
-                        <li><strong>Hold steady:</strong> Keep phone steady and parallel to the tag surface</li>
-                        <li><strong>Clear focus:</strong> Wait for the camera to focus clearly on the text</li>
-                        <li><strong>Distance:</strong> Hold phone about 20-30cm from the tag</li>
+                        <li><strong>End-face shots work best:</strong> Photo the cross-section ends of timber stacks</li>
+                        <li><strong>Good lighting:</strong> Ensure even lighting across the entire stack</li>
+                        <li><strong>Fill the frame:</strong> Get close enough so timber fills most of the photo</li>
+                        <li><strong>Straight angle:</strong> Keep camera parallel to the timber face</li>
+                        <li><strong>Avoid shadows:</strong> Try to minimize shadows between pieces</li>
+                        <li><strong>Clean background:</strong> Avoid complex backgrounds behind timber</li>
                     </ul>
                 </div>
 
                 <div class="camera-container">
-                    <video id="video" autoplay muted playsinline></video>
+                    <video id="video" autoplay muted playsinline style="display: none;"></video>
                     <canvas id="canvas"></canvas>
+                    <canvas id="processedCanvas"></canvas>
+                    <div id="imagePreview" class="image-preview"></div>
                 </div>
                 
                 <div class="controls">
-                    <button id="startCamera" class="btn">Start Camera</button>
-                    <button id="captureBtn" class="btn" disabled>Scan Tag</button>
-                    <button id="stopCamera" class="btn">Stop Camera</button>
+                    <button id="startCamera" class="btn">📹 Start Camera</button>
+                    <button id="captureBtn" class="btn" disabled>📸 Take Photo</button>
+                    <button id="stopCamera" class="btn">⏹️ Stop Camera</button>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    <button id="uploadBtn" class="btn btn-warning">📁 Upload Photo</button>
+                </div>
+                
+                <div class="processing-options">
+                    <h4>🔧 Detection Settings:</h4>
+                    <label>
+                        <input type="checkbox" id="showProcessed" checked> Show processed image
+                    </label>
+                    <label>
+                        Sensitivity: <input type="range" id="sensitivity" min="50" max="200" value="100">
+                        <span id="sensitivityValue">100</span>
+                    </label>
+                    <label>
+                        Min Size: <input type="range" id="minSize" min="10" max="100" value="30">
+                        <span id="minSizeValue">30</span> pixels
+                    </label>
+                </div>
+                
+                <div class="controls">
+                    <button id="countBtn" class="btn btn-success" disabled>🔢 Count Pieces</button>
+                    <button id="retakeBtn" class="btn" style="display: none;">🔄 Retake Photo</button>
                 </div>
                 
                 <div id="status" class="status" style="display: none;"></div>
-                <div id="debugSection" class="debug-section" style="display: none;"></div>
+                <div id="debugInfo" class="debug-info" style="display: none;"></div>
             </div>
         </div>
 
-        <div class="card">
+        <div class="card" id="resultsCard" style="display: none;">
             <div class="card-header">
-                <h2>Scanned Inventory</h2>
-                <p>Captured bale information ready for export</p>
+                <h2>📊 Count Results</h2>
+                <p>Detected timber pieces with manual adjustment</p>
             </div>
             <div class="card-body">
-                <table class="results-table">
-                    <thead>
-                        <tr>
-                            <th>Package Number</th>
-                            <th>Species</th>
-                            <th>Grade</th>
-                            <th>Dimensions</th>
-                            <th>Length</th>
-                            <th>Pieces</th>
-                            <th>Volume</th>
-                            <th>Date Scanned</th>
-                        </tr>
-                    </thead>
-                    <tbody id="resultsBody">
-                    </tbody>
-                </table>
+                <div class="count-display">
+                    <div class="count-number" id="countDisplay">0</div>
+                    <div class="count-label">Pieces Detected</div>
+                </div>
+                
+                <div class="count-adjustment">
+                    <button class="btn count-btn" id="decreaseBtn">-</button>
+                    <input type="number" class="count-input" id="manualCount" value="0" min="0">
+                    <button class="btn count-btn" id="increaseBtn">+</button>
+                </div>
                 
                 <div class="controls">
-                    <button id="exportCSV" class="btn btn-success export-btn">Export to CSV</button>
-                    <button id="clearData" class="btn">Clear All Data</button>
+                    <button id="saveCount" class="btn btn-success">💾 Save Count</button>
+                    <button id="newCount" class="btn">🔄 Count Another Stack</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        let video, canvas, ctx, stream;
-        let scannedData = JSON.parse(localStorage.getItem('crtc-bale-data') || '[]');
+        let video, canvas, ctx, processedCanvas, processedCtx, stream;
+        let currentImage = null;
+        let detectedCount = 0;
 
         // DOM elements
         const startCameraBtn = document.getElementById('startCamera');
         const captureBtn = document.getElementById('captureBtn');
         const stopCameraBtn = document.getElementById('stopCamera');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('fileInput');
+        const countBtn = document.getElementById('countBtn');
+        const retakeBtn = document.getElementById('retakeBtn');
         const videoElement = document.getElementById('video');
         const canvasElement = document.getElementById('canvas');
+        const processedCanvasElement = document.getElementById('processedCanvas');
+        const imagePreview = document.getElementById('imagePreview');
         const statusDiv = document.getElementById('status');
-        const debugSection = document.getElementById('debugSection');
-        const resultsBody = document.getElementById('resultsBody');
-        const exportBtn = document.getElementById('exportCSV');
-        const clearBtn = document.getElementById('clearData');
+        const debugInfo = document.getElementById('debugInfo');
+        const resultsCard = document.getElementById('resultsCard');
+        const countDisplay = document.getElementById('countDisplay');
+        const manualCount = document.getElementById('manualCount');
+        const decreaseBtn = document.getElementById('decreaseBtn');
+        const increaseBtn = document.getElementById('increaseBtn');
+        const saveCountBtn = document.getElementById('saveCount');
+        const newCountBtn = document.getElementById('newCount');
+        const showProcessedCheckbox = document.getElementById('showProcessed');
+        const sensitivitySlider = document.getElementById('sensitivity');
+        const minSizeSlider = document.getElementById('minSize');
+        const sensitivityValue = document.getElementById('sensitivityValue');
+        const minSizeValue = document.getElementById('minSizeValue');
 
         // Initialize
         video = videoElement;
         canvas = canvasElement;
         ctx = canvas.getContext('2d');
-
-        // Load existing data
-        updateResultsTable();
+        processedCanvas = processedCanvasElement;
+        processedCtx = processedCanvas.getContext('2d');
 
         // Event listeners
         startCameraBtn.addEventListener('click', startCamera);
-        captureBtn.addEventListener('click', captureAndScan);
+        captureBtn.addEventListener('click', capturePhoto);
         stopCameraBtn.addEventListener('click', stopCamera);
-        exportBtn.addEventListener('click', exportToCSV);
-        clearBtn.addEventListener('click', clearAllData);
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileUpload);
+        countBtn.addEventListener('click', countTimberPieces);
+        retakeBtn.addEventListener('click', resetForNewPhoto);
+        decreaseBtn.addEventListener('click', () => adjustCount(-1));
+        increaseBtn.addEventListener('click', () => adjustCount(1));
+        manualCount.addEventListener('input', updateDisplayFromInput);
+        saveCountBtn.addEventListener('click', saveCount);
+        newCountBtn.addEventListener('click', resetForNewPhoto);
+        sensitivitySlider.addEventListener('input', updateSensitivityDisplay);
+        minSizeSlider.addEventListener('input', updateMinSizeDisplay);
+
+        function updateSensitivityDisplay() {
+            sensitivityValue.textContent = sensitivitySlider.value;
+        }
+
+        function updateMinSizeDisplay() {
+            minSizeValue.textContent = minSizeSlider.value;
+        }
 
         async function startCamera() {
             try {
@@ -360,21 +440,24 @@
 
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
+                video.style.display = 'block';
                 
                 video.onloadedmetadata = () => {
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
+                    processedCanvas.width = video.videoWidth;
+                    processedCanvas.height = video.videoHeight;
                 };
 
                 startCameraBtn.disabled = true;
                 captureBtn.disabled = false;
                 stopCameraBtn.disabled = false;
                 
-                showStatus('Camera started! Position tag in view and tap "Scan Tag"', 'success');
+                showStatus('Camera started! Frame your timber stack and take a photo', 'success');
                 
             } catch (error) {
                 console.error('Camera error:', error);
-                showCameraError(error);
+                showStatus('Camera access failed. Please allow camera permissions.', 'error');
             }
         }
 
@@ -384,344 +467,337 @@
                 stream = null;
             }
             video.srcObject = null;
+            video.style.display = 'none';
             
             startCameraBtn.disabled = false;
             captureBtn.disabled = true;
             stopCameraBtn.disabled = true;
             
             hideStatus();
-            hideDebug();
         }
 
-        async function captureAndScan() {
-            showStatus('Scanning tag... Please wait', 'scanning');
-            captureBtn.disabled = true;
-
-            try {
-                // Capture frame
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imageData = canvas.toDataURL('image/png');
-
-                // Enhanced OCR processing with better settings for structured text
-                const result = await Tesseract.recognize(imageData, 'eng', {
-                    logger: info => {
-                        if (info.status === 'recognizing text') {
-                            showStatus(`Processing... ${Math.round(info.progress * 100)}%`, 'scanning');
-                        }
-                    },
-                    tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz,.-xX: ',
-                    tessedit_pageseg_mode: 6, // Assume a single uniform block of text
-                });
-
-                // Show debug information
-                showDebug(result.data.text);
-
-                const extractedData = parseSodraTag(result.data.text);
-                
-                if (extractedData.packageNumber) {
-                    // Check for duplicates
-                    const existingIndex = scannedData.findIndex(item => 
-                        item.packageNumber === extractedData.packageNumber
-                    );
-                    
-                    if (existingIndex >= 0) {
-                        scannedData[existingIndex] = { 
-                            ...extractedData, 
-                            dateScanned: new Date().toLocaleString() 
-                        };
-                        showStatus('Tag updated in inventory!', 'success');
-                    } else {
-                        scannedData.push({ 
-                            ...extractedData, 
-                            dateScanned: new Date().toLocaleString() 
-                        });
-                        showStatus('Tag successfully scanned and added!', 'success');
-                    }
-                    
-                    saveData();
-                    updateResultsTable();
-                } else {
-                    showStatus('Could not extract package number. Check debug section below and try again.', 'error');
-                }
-
-            } catch (error) {
-                console.error('OCR Error:', error);
-                showStatus('Scanning failed. Please try again.', 'error');
-            }
-
-            captureBtn.disabled = false;
+        function capturePhoto() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            currentImage = canvas.toDataURL('image/jpeg', 0.8);
+            
+            displayCapturedImage();
+            stopCamera();
+            
+            countBtn.disabled = false;
+            retakeBtn.style.display = 'inline-block';
+            
+            showStatus('Photo captured! Click "Count Pieces" to analyze', 'success');
         }
 
-        function parseSodraTag(text) {
-            const data = {
-                packageNumber: '',
-                species: '',
-                grade: '',
-                dimensions: '',
-                length: '',
-                pieces: '',
-                volume: ''
-            };
-
-            // Clean up text
-            const cleanText = text.replace(/\s+/g, ' ').trim();
-            const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-            
-            console.log('Raw OCR text:', text);
-            console.log('Cleaned lines:', lines);
-
-            // Extract Package Number - 8-9 digits
-            const packagePatterns = [
-                /Package\s+number\s*(\d{8,9})/i,
-                /(\d{8,9})/,
-                /30\d{6,7}/, // Specific pattern for your packages starting with 30
-                /220\d{6}/,  // Pattern for packages starting with 220
-            ];
-            
-            for (const pattern of packagePatterns) {
-                const match = cleanText.match(pattern);
-                if (match) {
-                    data.packageNumber = match[1] || match[0];
-                    break;
-                }
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        processedCanvas.width = img.width;
+                        processedCanvas.height = img.height;
+                        
+                        ctx.drawImage(img, 0, 0);
+                        currentImage = canvas.toDataURL('image/jpeg', 0.8);
+                        
+                        displayCapturedImage();
+                        countBtn.disabled = false;
+                        retakeBtn.style.display = 'inline-block';
+                        
+                        showStatus('Photo uploaded! Click "Count Pieces" to analyze', 'success');
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
             }
-
-            // Species - Default to WW for Södra tags, but try to detect
-            if (cleanText.toLowerCase().includes('species')) {
-                const speciesMatch = cleanText.match(/species\s*([A-Z]{2,3})/i);
-                data.species = speciesMatch ? speciesMatch[1] : 'WW';
-            } else if (cleanText.includes('WW')) {
-                data.species = 'WW';
-            } else {
-                data.species = 'WW'; // Default for Södra
-            }
-
-            // Grade - Usually TR26 for structural timber
-            if (cleanText.toLowerCase().includes('grade')) {
-                const gradeMatch = cleanText.match(/grade\s*([A-Z]{2}\d{2})/i);
-                data.grade = gradeMatch ? gradeMatch[1] : 'TR26';
-            } else if (cleanText.includes('TR26')) {
-                data.grade = 'TR26';
-            } else {
-                data.grade = 'TR26'; // Default for structural
-            }
-
-            // Dimensions - Look for patterns like 46,5x197 or 35x147
-            const dimensionPatterns = [
-                /(\d{2,3}[,.]?\d*\s*[xX×]\s*\d{2,3})/,
-                /Dimension\s*(\d{2,3}[,.]?\d*\s*[xX×]\s*\d{2,3})/i,
-                /(46[,.]?5\s*[xX×]\s*197)/,
-                /(35\s*[xX×]\s*147)/,
-                /(47\s*[xX×]\s*72)/,
-            ];
-            
-            for (const pattern of dimensionPatterns) {
-                const match = cleanText.match(pattern);
-                if (match) {
-                    data.dimensions = match[1].replace(/\s/g, '').replace(/[,]/g, '.').replace(/[×X]/gi, 'x');
-                    break;
-                }
-            }
-
-            // Length - Look for the actual length value like 6,000
-            const lengthPatterns = [
-                /Length\s*(\d{1,2}[,.]?\d{3})/i,
-                /(\d{1,2}[,.]?\d{3})\s*(?=.*Volume)/i, // Number before Volume
-                /\b([3-9],[0-9]{3})\b/, // Pattern like 6,000, 4,800 etc
-                /\b([3-9]\d{3})\b(?!-\d{2}-\d{2})/ // 4-digit numbers, not dates
-            ];
-            
-            for (const pattern of lengthPatterns) {
-                const match = cleanText.match(pattern);
-                if (match) {
-                    const lengthValue = match[1].replace(/[,]/g, '');
-                    const num = parseInt(lengthValue);
-                    if (num >= 3000 && num <= 9000) { // Reasonable range
-                        data.length = lengthValue;
-                        break;
-                    }
-                }
-            }
-
-            // Pieces - Look for the pieces value like 270
-            const piecesPatterns = [
-                /Pieces\s*(\d{2,3})/i,
-                /(\d{2,3})\s*(?=.*Date|.*Multiple)/i, // Number before Date or Multiple
-                /\b(2[0-9]{2})\b/, // 200-299 range
-                /\b([5-9][0-9])\b/, // 50-99 range
-                /\b(1[0-9]{2})\b/ // 100-199 range
-            ];
-            
-            for (const pattern of piecesPatterns) {
-                const match = cleanText.match(pattern);
-                if (match) {
-                    const piecesValue = parseInt(match[1]);
-                    if (piecesValue >= 30 && piecesValue <= 500 && 
-                        piecesValue !== 122 && piecesValue !== 197 && piecesValue !== 147) {
-                        data.pieces = match[1];
-                        break;
-                    }
-                }
-            }
-
-            // Volume - Look for patterns like 6,917 - often appears after length
-            const volumePatterns = [
-                /6,000\s+(\d{1,2}[,.]?\d{3})/i, // Number after "6,000"
-                /Volume\s*(\d{1,2}[,.]?\d{3})/i,
-                /(\d{1,2}[,.]?\d{3})\s*Multiple-Lengths/i,
-                /\b([6-9][,.]?\d{3})\b(?=.*Multiple)/i, // 6000+ range before Multiple
-                /\b([2-9][,.]?\d{3})\b(?!.*Length)(?=.*Multiple)/i // Not after Length, before Multiple
-            ];
-            
-            for (const pattern of volumePatterns) {
-                const match = cleanText.match(pattern);
-                if (match) {
-                    const volumeValue = match[1];
-                    // Make sure it's different from length and reasonable for volume
-                    if (volumeValue !== data.length && parseFloat(volumeValue.replace(',', '.')) > 1) {
-                        data.volume = volumeValue;
-                        break;
-                    }
-                }
-            }
-
-            // Try to extract from line-by-line analysis for better accuracy
-            lines.forEach((line, index) => {
-                const upperLine = line.toUpperCase();
-                
-                // Look for specific patterns in each line
-                if (upperLine.includes('PACKAGE') && /\d{8,9}/.test(line)) {
-                    const match = line.match(/(\d{8,9})/);
-                    if (match && !data.packageNumber) data.packageNumber = match[1];
-                }
-                
-                if (/^\d{2,3}[,.]?\d*\s*[xX×]\s*\d{2,3}$/.test(line.trim())) {
-                    if (!data.dimensions) data.dimensions = line.trim().replace(/[,]/g, '.').replace(/[×X]/gi, 'x');
-                }
-                
-                if (/^\d{4,5}$/.test(line.trim()) && !data.length) {
-                    data.length = line.trim();
-                }
-                
-                if (/^\d{2,3}$/.test(line.trim()) && !data.pieces && parseInt(line.trim()) < 500) {
-                    data.pieces = line.trim();
-                }
-                
-                if (/^\d[,.]?\d{3}$/.test(line.trim()) && !data.volume) {
-                    data.volume = line.trim();
-                }
-            });
-
-            console.log('Extracted data:', data);
-            return data;
         }
 
-        function updateResultsTable() {
-            resultsBody.innerHTML = '';
-            
-            scannedData.forEach((item, index) => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${item.packageNumber}</td>
-                    <td>${item.species}</td>
-                    <td>${item.grade}</td>
-                    <td>${item.dimensions}</td>
-                    <td>${item.length}</td>
-                    <td>${item.pieces}</td>
-                    <td>${item.volume}</td>
-                    <td>${item.dateScanned}</td>
-                `;
-                resultsBody.appendChild(row);
-            });
+        function displayCapturedImage() {
+            imagePreview.innerHTML = `<img src="${currentImage}" alt="Captured timber stack">`;
         }
 
-        function saveData() {
-            localStorage.setItem('crtc-bale-data', JSON.stringify(scannedData));
-        }
-
-        function exportToCSV() {
-            if (scannedData.length === 0) {
-                alert('No data to export');
+        async function countTimberPieces() {
+            if (!currentImage) {
+                showStatus('Please capture or upload a photo first', 'error');
                 return;
             }
 
-            const headers = ['Package Number', 'Species', 'Grade', 'Dimensions', 'Length', 'Pieces', 'Volume', 'Date Scanned'];
-            const csvContent = [
-                headers.join(','),
-                ...scannedData.map(item => [
-                    item.packageNumber,
-                    item.species,
-                    item.grade,
-                    item.dimensions,
-                    item.length,
-                    item.pieces,
-                    item.volume,
-                    `"${item.dateScanned}"`
-                ].join(','))
-            ].join('\n');
+            showStatus('Analyzing image... Please wait', 'processing');
+            countBtn.disabled = true;
 
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `CRTC_Bale_Inventory_${new Date().toISOString().split('T')[0]}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        }
+            try {
+                // Get the image data from canvas
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                
+                // Process the image to count timber pieces
+                const count = await processImageForCounting(imageData);
+                
+                detectedCount = count;
+                updateCountDisplay(count);
+                
+                resultsCard.style.display = 'block';
+                resultsCard.scrollIntoView({ behavior: 'smooth' });
+                
+                showStatus(`Detected ${count} timber pieces. Adjust if needed using +/- buttons.`, 'success');
+                
+                // Show debug info
+                showDebugInfo(`
+                    Image size: ${canvas.width} x ${canvas.height}
+                    Sensitivity: ${sensitivitySlider.value}
+                    Min size: ${minSizeSlider.value}px
+                    Detected pieces: ${count}
+                `);
 
-        function clearAllData() {
-            if (confirm('Are you sure you want to clear all scanned data? This cannot be undone.')) {
-                scannedData = [];
-                localStorage.removeItem('crtc-bale-data');
-                updateResultsTable();
-                showStatus('All data cleared', 'success');
+            } catch (error) {
+                console.error('Counting error:', error);
+                showStatus('Counting failed. Please try with better lighting or a different angle.', 'error');
             }
+
+            countBtn.disabled = false;
         }
 
-        function showStatus(message, type) {
-            statusDiv.textContent = message;
-            statusDiv.className = `status ${type}`;
-            statusDiv.style.display = 'block';
+        async function processImageForCounting(imageData) {
+            // Copy original image to processed canvas
+            processedCtx.putImageData(imageData, 0, 0);
+            
+            // Convert to grayscale
+            const grayImageData = convertToGrayscale(imageData);
+            
+            // Apply Gaussian blur to reduce noise
+            const blurredImageData = applyGaussianBlur(grayImageData, 2);
+            
+            // Edge detection using Sobel operator
+            const edgeImageData = applySobelEdgeDetection(blurredImageData);
+            
+            // Apply threshold
+            const threshold = parseInt(sensitivitySlider.value);
+            const binaryImageData = applyThreshold(edgeImageData, threshold);
+            
+            // Find contours and count rectangular shapes
+            const contours = findContours(binaryImageData);
+            const minSize = parseInt(minSizeSlider.value);
+            const rectangularContours = filterRectangularContours(contours, minSize);
+            
+            // Draw detected rectangles on processed canvas if enabled
+            if (showProcessedCheckbox.checked) {
+                drawDetectedRectangles(rectangularContours);
+                processedCanvas.style.display = 'block';
+            } else {
+                processedCanvas.style.display = 'none';
+            }
+            
+            return rectangularContours.length;
         }
 
-        function hideStatus() {
-            statusDiv.style.display = 'none';
+        function convertToGrayscale(imageData) {
+            const data = new Uint8ClampedArray(imageData.data);
+            for (let i = 0; i < data.length; i += 4) {
+                const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+                data[i] = gray;     // Red
+                data[i + 1] = gray; // Green
+                data[i + 2] = gray; // Blue
+                // Alpha channel remains unchanged
+            }
+            return new ImageData(data, imageData.width, imageData.height);
         }
 
-        function showDebug(ocrText) {
-            debugSection.innerHTML = `
-                <details open>
-                    <summary>Debug: OCR Text Captured (${ocrText.length} characters)</summary>
-                    <pre>${ocrText}</pre>
-                </details>
-            `;
-            debugSection.style.display = 'block';
+        function applyGaussianBlur(imageData, radius) {
+            // Simple box blur approximation
+            const data = new Uint8ClampedArray(imageData.data);
+            const width = imageData.width;
+            const height = imageData.height;
+            
+            for (let y = radius; y < height - radius; y++) {
+                for (let x = radius; x < width - radius; x++) {
+                    let sum = 0;
+                    let count = 0;
+                    
+                    for (let dy = -radius; dy <= radius; dy++) {
+                        for (let dx = -radius; dx <= radius; dx++) {
+                            const index = ((y + dy) * width + (x + dx)) * 4;
+                            sum += data[index];
+                            count++;
+                        }
+                    }
+                    
+                    const avg = sum / count;
+                    const index = (y * width + x) * 4;
+                    data[index] = avg;
+                    data[index + 1] = avg;
+                    data[index + 2] = avg;
+                }
+            }
+            
+            return new ImageData(data, width, height);
         }
 
-        function hideDebug() {
-            debugSection.style.display = 'none';
+        function applySobelEdgeDetection(imageData) {
+            const data = new Uint8ClampedArray(imageData.data);
+            const width = imageData.width;
+            const height = imageData.height;
+            const output = new Uint8ClampedArray(imageData.data.length);
+            
+            // Sobel kernels
+            const sobelX = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]];
+            const sobelY = [[-1, -2, -1], [0, 0, 0], [1, 2, 1]];
+            
+            for (let y = 1; y < height - 1; y++) {
+                for (let x = 1; x < width - 1; x++) {
+                    let gx = 0, gy = 0;
+                    
+                    for (let ky = -1; ky <= 1; ky++) {
+                        for (let kx = -1; kx <= 1; kx++) {
+                            const index = ((y + ky) * width + (x + kx)) * 4;
+                            const pixel = data[index];
+                            gx += pixel * sobelX[ky + 1][kx + 1];
+                            gy += pixel * sobelY[ky + 1][kx + 1];
+                        }
+                    }
+                    
+                    const magnitude = Math.sqrt(gx * gx + gy * gy);
+                    const index = (y * width + x) * 4;
+                    output[index] = magnitude;
+                    output[index + 1] = magnitude;
+                    output[index + 2] = magnitude;
+                    output[index + 3] = 255;
+                }
+            }
+            
+            return new ImageData(output, width, height);
         }
 
-        function showCameraError(error) {
-            const errorMessages = {
-                'NotAllowedError': 'Camera access denied. Please allow camera permissions.',
-                'NotFoundError': 'No camera found on this device.',
-                'NotSupportedError': 'Camera not supported in this browser.',
-                'NotReadableError': 'Camera is being used by another application.',
-                'OverconstrainedError': 'Camera constraints not supported.',
-                'SecurityError': 'Camera access blocked. Make sure you are using HTTPS.'
-            };
-
-            const message = errorMessages[error.name] || `Camera error: ${error.message}`;
-            showStatus(message, 'error');
+        function applyThreshold(imageData, threshold) {
+            const data = new Uint8ClampedArray(imageData.data);
+            
+            for (let i = 0; i < data.length; i += 4) {
+                const value = data[i] > threshold ? 255 : 0;
+                data[i] = value;
+                data[i + 1] = value;
+                data[i + 2] = value;
+            }
+            
+            return new ImageData(data, imageData.width, imageData.height);
         }
 
-        // Check for HTTPS
-        if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-            showStatus('HTTPS required for camera access. Please serve this app over HTTPS.', 'error');
+        function findContours(imageData) {
+            const width = imageData.width;
+            const height = imageData.height;
+            const data = imageData.data;
+            const visited = new Array(width * height).fill(false);
+            const contours = [];
+            
+            function isWhite(x, y) {
+                if (x < 0 || x >= width || y < 0 || y >= height) return false;
+                const index = (y * width + x) * 4;
+                return data[index] > 128;
+            }
+            
+            function floodFill(startX, startY) {
+                const stack = [[startX, startY]];
+                const points = [];
+                
+                while (stack.length > 0) {
+                    const [x, y] = stack.pop();
+                    const index = y * width + x;
+                    
+                    if (x < 0 || x >= width || y < 0 || y >= height || visited[index] || !isWhite(x, y)) {
+                        continue;
+                    }
+                    
+                    visited[index] = true;
+                    points.push([x, y]);
+                    
+                    stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+                }
+                
+                return points;
+            }
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const index = y * width + x;
+                    if (!visited[index] && isWhite(x, y)) {
+                        const contour = floodFill(x, y);
+                        if (contour.length > 10) { // Minimum size filter
+                            contours.push(contour);
+                        }
+                    }
+                }
+            }
+            
+            return contours;
         }
-    </script>
-</body>
-</html>
+
+        function filterRectangularContours(contours, minSize) {
+            return contours.filter(contour => {
+                if (contour.length < minSize) return false;
+                
+                // Calculate bounding box
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+                
+                contour.forEach(([x, y]) => {
+                    minX = Math.min(minX, x);
+                    maxX = Math.max(maxX, x);
+                    minY = Math.min(minY, y);
+                    maxY = Math.max(maxY, y);
+                });
+                
+                const width = maxX - minX;
+                const height = maxY - minY;
+                const area = width * height;
+                const contourArea = contour.length;
+                
+                // Check if contour is roughly rectangular
+                const rectangularity = contourArea / area;
+                const aspectRatio = Math.max(width, height) / Math.min(width, height);
+                
+                return rectangularity > 0.1 && 
+                       aspectRatio < 10 && 
+                       width > minSize && 
+                       height > minSize &&
+                       area > minSize * minSize;
+            });
+        }
+
+        function drawDetectedRectangles(contours) {
+            processedCtx.clearRect(0, 0, processedCanvas.width, processedCanvas.height);
+            processedCtx.putImageData(ctx.getImageData(0, 0, canvas.width, canvas.height), 0, 0);
+            
+            processedCtx.strokeStyle = '#ff0000';
+            processedCtx.lineWidth = 2;
+            
+            contours.forEach((contour, index) => {
+                // Calculate bounding box
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+                
+                contour.forEach(([x, y]) => {
+                    minX = Math.min(minX, x);
+                    maxX = Math.max(maxX, x);
+                    minY = Math.min(minY, y);
+                    maxY = Math.max(maxY, y);
+                });
+                
+                // Draw rectangle
+                processedCtx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+                
+                // Draw number
+                processedCtx.fillStyle = '#ff0000';
+                processedCtx.font = '16px Arial';
+                processedCtx.fillText((index + 1).toString(), minX + 5, minY + 20);
+            });
+        }
+
+        function updateCountDisplay(count) {
+            countDisplay.textContent = count;
+            manualCount.value = count;
+        }
+
+        function adjustCount(delta) {
+            const current = parseInt(manualCount.value) || 0;
+            const newCount = Math.max(
