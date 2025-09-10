@@ -523,49 +523,69 @@
                 }
             }
 
-            // Length - Usually 4-5 digit numbers like 4800, 5400, 4200
+            // Length - Look for numbers like 6000, 4656, etc. (avoiding dates)
             const lengthPatterns = [
                 /Length\s*(\d{4,5})/i,
-                /(\d{4,5})\s*Pieces/i,
-                /(4[,.]?[2-9]\d{2})/,
-                /(5[,.]?[0-9]\d{2})/,
+                /(\d{4,5})\s*(?!-\d{2}-\d{2})/g, // Avoid date patterns like 2024-12-20
+                /[^0-9]([456]\d{3})[^0-9]/, // Look for 4000-6999 range numbers
+                /\b([456],[0-9]{3})\b/ // Numbers with comma like 4,500
             ];
             
             for (const pattern of lengthPatterns) {
-                const match = cleanText.match(pattern);
-                if (match) {
-                    data.length = match[1].replace(/[,]/g, '');
-                    break;
+                const matches = cleanText.match(pattern);
+                if (matches) {
+                    // Filter out dates and find likely length values
+                    const candidates = matches.filter(match => {
+                        const num = match.replace(/[,]/g, '');
+                        return /^\d{4,5}$/.test(num) && 
+                               parseInt(num) >= 3000 && 
+                               parseInt(num) <= 6000 &&
+                               !/-\d{2}-\d{2}/.test(match); // Not part of date
+                    });
+                    if (candidates.length > 0) {
+                        data.length = candidates[0].replace(/[,]/g, '');
+                        break;
+                    }
                 }
             }
 
-            // Pieces - Usually 2-3 digit numbers like 55, 165, 210
+            // Pieces - Look for 2-3 digit numbers, avoid years and other large numbers
             const piecesPatterns = [
                 /Pieces\s*(\d{2,3})/i,
                 /(\d{2,3})\s*(?:Multiple|Date|Datum)/i,
-                /(55|165|210|99|121)/,
             ];
             
-            for (const pattern of piecesPatterns) {
-                const match = cleanText.match(pattern);
-                if (match) {
-                    data.pieces = match[1];
-                    break;
+            // Also look for standalone 2-3 digit numbers that aren't years or dimensions
+            const numbers = cleanText.match(/\b(\d{2,3})\b/g);
+            if (numbers) {
+                const candidates = numbers.filter(num => {
+                    const n = parseInt(num);
+                    return n >= 30 && n <= 500 && // Reasonable range for pieces
+                           n !== 122 && n !== 197 && n !== 147 && n !== 72; // Not dimensions
+                });
+                if (candidates.length > 0 && !data.pieces) {
+                    data.pieces = candidates[0];
                 }
             }
 
-            // Volume - Decimal numbers like 2,418 or 2,983
+            // Volume - Look for patterns like 0462, 2,418, etc.
             const volumePatterns = [
                 /Volume\s*(\d[,.]?\d{3})/i,
                 /(\d[,.]?\d{3})\s*Multiple-Lengths/i,
-                /(2[,.]?\d{3})/,
-                /(4[,.]?\d{3})/,
+                /\b0(\d{3})\b/, // Pattern like 0462
+                /\b([2-4],[0-9]{3})\b/, // Pattern like 2,418
+                /\b([2-4]\.\d{3})\b/ // Pattern like 2.418
             ];
             
             for (const pattern of volumePatterns) {
                 const match = cleanText.match(pattern);
                 if (match) {
-                    data.volume = match[1];
+                    if (match[0].startsWith('0') && match[1]) {
+                        // Handle 0462 format - convert to decimal
+                        data.volume = (parseInt(match[1]) / 1000).toFixed(3);
+                    } else {
+                        data.volume = match[1];
+                    }
                     break;
                 }
             }
