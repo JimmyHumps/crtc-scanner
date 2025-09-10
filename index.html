@@ -564,20 +564,24 @@
                 }
             }
 
-            // Volume - Look for patterns like 6,917 or 6.917
+            // Volume - Look for patterns like 6,917 - often appears after length
             const volumePatterns = [
+                /6,000\s+(\d{1,2}[,.]?\d{3})/i, // Number after "6,000"
                 /Volume\s*(\d{1,2}[,.]?\d{3})/i,
                 /(\d{1,2}[,.]?\d{3})\s*Multiple-Lengths/i,
-                /\b([2-9][,.]?\d{3})\b(?=.*Multiple)/i, // Number before Multiple-Lengths
-                /\b([6][,.]?9\d{2})\b/, // Specific pattern like 6,917
-                /\b([2-9]\.\d{3})\b/ // Decimal format
+                /\b([6-9][,.]?\d{3})\b(?=.*Multiple)/i, // 6000+ range before Multiple
+                /\b([2-9][,.]?\d{3})\b(?!.*Length)(?=.*Multiple)/i // Not after Length, before Multiple
             ];
             
             for (const pattern of volumePatterns) {
                 const match = cleanText.match(pattern);
                 if (match) {
-                    data.volume = match[1];
-                    break;
+                    const volumeValue = match[1];
+                    // Make sure it's different from length and reasonable for volume
+                    if (volumeValue !== data.length && parseFloat(volumeValue.replace(',', '.')) > 1) {
+                        data.volume = volumeValue;
+                        break;
+                    }
                 }
             }
 
