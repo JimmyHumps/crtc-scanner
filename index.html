@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRTC Bale Tag Scanner</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .header {
+            background: white;
+            padding: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #1e3c72;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #2a5298 0%, #1e3c72 100%);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .card-body {
+            padding: 2rem;
+        }
+        
+        .camera-container {
+            position: relative;
+            margin-bottom: 2rem;
+        }
+        
+        #video {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        #canvas {
+            display: none;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 1.5rem 0;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #2a5298 0%, #1e3c72 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin: 0.5rem;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(42, 82, 152, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+        
+        .btn-success:hover {
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        }
+        
+        .status {
+            text-align: center;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        
+        .status.scanning {
+            background: #e7f3ff;
+            color: #0066cc;
+            border: 2px solid #b3d9ff;
+        }
+        
+        .status.success {
+            background: #e8f5e8;
+            color: #2d5e2d;
+            border: 2px solid #90ee90;
+        }
+        
+        .status.error {
+            background: #ffe7e7;
+            color: #cc0000;
+            border: 2px solid #ffb3b3;
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .results-table th,
+        .results-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .results-table th {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .results-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .export-btn {
+            margin-top: 1rem;
+        }
+        
+        .camera-error {
+            text-align: center;
+            padding: 2rem;
+            color: #dc3545;
+        }
+        
+        .camera-error h3 {
+            margin-bottom: 1rem;
+        }
+        
+        .instructions {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            border-left: 4px solid #2a5298;
+        }
+        
+        .instructions h3 {
+            color: #2a5298;
+            margin-bottom: 1rem;
+        }
+        
+        .instructions ul {
+            margin-left: 1.5rem;
+        }
+        
+        .instructions li {
+            margin-bottom: 0.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 1rem auto;
+                padding: 0 0.5rem;
+            }
+            
+            .card-body {
+                padding: 1rem;
+            }
+            
+            .results-table {
+                font-size: 0.9rem;
+            }
+            
+            .results-table th,
+            .results-table td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Cork Roof Truss Company</div>
+        <div class="subtitle">Bale Tag Scanner - Timber Inventory Management</div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h2>📱 Scan Bale Tags</h2>
+                <p>Position the camera over a bale tag to automatically extract inventory data</p>
+            </div>
+            <div class="card-body">
+                <div class="instructions">
+                    <h3>📋 Before You Start:</h3>
+                    <ul>
+                        <li><strong>HTTPS Required:</strong> This app must be served over HTTPS or localhost for camera access</li>
+                        <li><strong>Chrome Settings:</strong> Allow camera permissions when prompted</li>
+                        <li><strong>Lighting:</strong> Ensure good lighting on the bale tag</li>
+                        <li><strong>Positioning:</strong> Keep tag flat and well-centered in the camera view</li>
+                        <li><strong>Focus:</strong> Ensure text is clear and readable before capturing</li>
+                    </ul>
+                </div>
+
+                <div class="camera-container">
+                    <video id="video" autoplay muted playsinline></video>
+                    <canvas id="canvas"></canvas>
+                </div>
+                
+                <div class="controls">
+                    <button id="startCamera" class="btn">📹 Start Camera</button>
+                    <button id="captureBtn" class="btn" disabled>📸 Scan Tag</button>
+                    <button id="stopCamera" class="btn">⏹️ Stop Camera</button>
+                </div>
+                
+                <div id="status" class="status" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>📊 Scanned Inventory</h2>
+                <p>Captured bale information ready for export</p>
+            </div>
+            <div class="card-body">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Package Number</th>
+                            <th>Species</th>
+                            <th>Grade</th>
+                            <th>Dimensions</th>
+                            <th>Length</th>
+                            <th>Pieces</th>
+                            <th>Volume</th>
+                            <th>Date Scanned</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody">
+                    </tbody>
+                </table>
+                
+                <div class="controls">
+                    <button id="exportCSV" class="btn btn-success export-btn">📁 Export to CSV</button>
+                    <button id="clearData" class="btn">🗑️ Clear All Data</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let video, canvas, ctx, stream;
+        let scannedData = JSON.parse(localStorage.getItem('crtc-bale-data') || '[]');
+
+        // DOM elements
+        const startCameraBtn = document.getElementById('startCamera');
+        const captureBtn = document.getElementById('captureBtn');
+        const stopCameraBtn = document.getElementById('stopCamera');
+        const videoElement = document.getElementById('video');
+        const canvasElement = document.getElementById('canvas');
+        const statusDiv = document.getElementById('status');
+        const resultsBody = document.getElementById('resultsBody');
+        const exportBtn = document.getElementById('exportCSV');
+        const clearBtn = document.getElementById('clearData');
+
+        // Initialize
+        video = videoElement;
+        canvas = canvasElement;
+        ctx = canvas.getContext('2d');
+
+        // Load existing data
+        updateResultsTable();
+
+        // Event listeners
+        startCameraBtn.addEventListener('click', startCamera);
+        captureBtn.addEventListener('click', captureAndScan);
+        stopCameraBtn.addEventListener('click', stopCamera);
+        exportBtn.addEventListener('click', exportToCSV);
+        clearBtn.addEventListener('click', clearAllData);
+
+        async function startCamera() {
+            try {
+                // Request camera permission with specific constraints
+                const constraints = {
+                    video: {
+                        facingMode: 'environment', // Use back camera on mobile
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                };
+
+                startCameraBtn.disabled = true;
+                captureBtn.disabled = false;
+                stopCameraBtn.disabled = false;
+                
+                showStatus('Camera started successfully! Position tag in view and click "Scan Tag"', 'success');
+                
+            } catch (error) {
+                console.error('Camera error:', error);
+                showCameraError(error);
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            video.srcObject = null;
+            
+            startCameraBtn.disabled = false;
+            captureBtn.disabled = true;
+            stopCameraBtn.disabled = true;
+            
+            hideStatus();
+        }
+
+        async function captureAndScan() {
+            showStatus('Scanning tag... Please wait', 'scanning');
+            captureBtn.disabled = true;
+
+            try {
+                // Capture frame
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = canvas.toDataURL('image/png');
+
+                // OCR processing
+                const result = await Tesseract.recognize(imageData, 'eng', {
+                    logger: info => {
+                        if (info.status === 'recognizing text') {
+                            showStatus(`Processing... ${Math.round(info.progress * 100)}%`, 'scanning');
+                        }
+                    }
+                });
+
+                const extractedData = parseTagData(result.data.text);
+                
+                if (extractedData.packageNumber) {
+                    // Check for duplicates
+                    const existingIndex = scannedData.findIndex(item => 
+                        item.packageNumber === extractedData.packageNumber
+                    );
+                    
+                    if (existingIndex >= 0) {
+                        // Update existing entry
+                        scannedData[existingIndex] = { 
+                            ...extractedData, 
+                            dateScanned: new Date().toLocaleString() 
+                        };
+                        showStatus('Tag updated in inventory!', 'success');
+                    } else {
+                        // Add new entry
+                        scannedData.push({ 
+                            ...extractedData, 
+                            dateScanned: new Date().toLocaleString() 
+                        });
+                        showStatus('Tag successfully scanned and added!', 'success');
+                    }
+                    
+                    saveData();
+                    updateResultsTable();
+                } else {
+                    showStatus('Could not extract package number. Please try again with better lighting and positioning.', 'error');
+                }
+
+            } catch (error) {
+                console.error('OCR Error:', error);
+                showStatus('Scanning failed. Please try again.', 'error');
+            }
+
+            captureBtn.disabled = false;
+        }
+
+        function parseTagData(text) {
+            const data = {
+                packageNumber: '',
+                species: '',
+                grade: '',
+                dimensions: '',
+                length: '',
+                pieces: '',
+                volume: ''
+            };
+
+            // Clean up text
+            const cleanText = text.replace(/\s+/g, ' ').trim();
+            
+            // Extract package number (8-9 digits)
+            const packageMatch = cleanText.match(/Package\s+number\s+(\d{8,9})|(\d{8,9})/i);
+            if (packageMatch) {
+                data.packageNumber = packageMatch[1] || packageMatch[2];
+            }
+
+            // Extract species (usually WW)
+            const speciesMatch = cleanText.match(/Species\s+([A-Z]{2,3})|Species\s*\n\s*([A-Z]{2,3})/i);
+            if (speciesMatch) {
+                data.species = speciesMatch[1] || speciesMatch[2];
+            }
+
+            // Extract grade (usually TR26)
+            const gradeMatch = cleanText.match(/Grade\s+([A-Z]{2}\d{2})|Grade\s*\n\s*([A-Z]{2}\d{2})/i);
+            if (gradeMatch) {
+                data.grade = gradeMatch[1] || gradeMatch[2];
+            }
+
+            // Extract dimensions (e.g., 46,5x197 or 35x147)
+            const dimensionMatch = cleanText.match(/Dimension\s+(\d{1,3}[,.]?\d*\s*x\s*\d{2,3})/i);
+            if (dimensionMatch) {
+                data.dimensions = dimensionMatch[1].replace(/\s/g, '');
+            }
+
+            // Extract length
+            const lengthMatch = cleanText.match(/Length\s+(\d{1,2}[,.]?\d{0,3})/i);
+            if (lengthMatch) {
+                data.length = lengthMatch[1];
+            }
+
+            // Extract pieces
+            const piecesMatch = cleanText.match(/Pieces\s+(\d{1,3})/i);
+            if (piecesMatch) {
+                data.pieces = piecesMatch[1];
+            }
+
+            // Extract volume
+            const volumeMatch = cleanText.match(/Volume\s+(\d{1,2}[,.]?\d{0,3})/i);
+            if (volumeMatch) {
+                data.volume = volumeMatch[1];
+            }
+
+            return data;
+        }
+
+        function updateResultsTable() {
+            resultsBody.innerHTML = '';
+            
+            scannedData.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.packageNumber}</td>
+                    <td>${item.species}</td>
+                    <td>${item.grade}</td>
+                    <td>${item.dimensions}</td>
+                    <td>${item.length}</td>
+                    <td>${item.pieces}</td>
+                    <td>${item.volume}</td>
+                    <td>${item.dateScanned}</td>
+                `;
+                resultsBody.appendChild(row);
+            });
+        }
+
+        function saveData() {
+            localStorage.setItem('crtc-bale-data', JSON.stringify(scannedData));
+        }
+
+        function exportToCSV() {
+            if (scannedData.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            const headers = ['Package Number', 'Species', 'Grade', 'Dimensions', 'Length', 'Pieces', 'Volume', 'Date Scanned'];
+            const csvContent = [
+                headers.join(','),
+                ...scannedData.map(item => [
+                    item.packageNumber,
+                    item.species,
+                    item.grade,
+                    item.dimensions,
+                    item.length,
+                    item.pieces,
+                    item.volume,
+                    `"${item.dateScanned}"`
+                ].join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `CRTC_Bale_Inventory_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+
+        function clearAllData() {
+            if (confirm('Are you sure you want to clear all scanned data? This cannot be undone.')) {
+                scannedData = [];
+                localStorage.removeItem('crtc-bale-data');
+                updateResultsTable();
+                showStatus('All data cleared', 'success');
+            }
+        }
+
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+        }
+
+        function hideStatus() {
+            statusDiv.style.display = 'none';
+        }
+
+        function showCameraError(error) {
+            const errorMessages = {
+                'NotAllowedError': 'Camera access denied. Please allow camera permissions in your browser settings.',
+                'NotFoundError': 'No camera found on this device.',
+                'NotSupportedError': 'Camera not supported in this browser.',
+                'NotReadableError': 'Camera is being used by another application.',
+                'OverconstrainedError': 'Camera constraints not supported.',
+                'SecurityError': 'Camera access blocked due to security settings. Make sure you\'re using HTTPS.'
+            };
+
+            const message = errorMessages[error.name] || `Camera error: ${error.message}`;
+            
+            video.style.display = 'none';
+            statusDiv.innerHTML = `
+                <div class="camera-error">
+                    <h3>📷 Camera Access Issue</h3>
+                    <p>${message}</p>
+                    <br>
+                    <strong>To fix this:</strong>
+                    <ul style="text-align: left; display: inline-block;">
+                        <li>Make sure you're accessing this page via HTTPS or localhost</li>
+                        <li>Check Chrome's camera permissions (click the camera icon in address bar)</li>
+                        <li>Try refreshing the page and allowing permissions</li>
+                        <li>Ensure no other apps are using the camera</li>
+                    </ul>
+                </div>
+            `;
+            statusDiv.className = 'status error';
+            statusDiv.style.display = 'block';
+        }
+
+        // Check for HTTPS on load
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            showStatus('⚠️ HTTPS required for camera access. Please serve this app over HTTPS or localhost.', 'error');
+        }
+    </script>
+</body>
+</html>
